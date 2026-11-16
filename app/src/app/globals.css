@@ -1,0 +1,58 @@
+:root {
+  --bg: #0b0d12;
+  --panel: #141821;
+  --panel-2: #1b2030;
+  --border: #262c3d;
+  --text: #e8ebf2;
+  --muted: #8a93a8;
+  --accent: #8b5cf6;
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --red: #ef4444;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+a { color: #a78bfa; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.brand { display: flex; flex-direction: column; }
+.brand h1 { margin: 0; font-size: 22px; letter-spacing: -0.02em; }
+.brand span { color: var(--muted); font-size: 13px; }
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; min-width: 0; }
+.card h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+.span-4 { grid-column: span 4; } .span-5 { grid-column: span 5; } .span-6 { grid-column: span 6; } .span-7 { grid-column: span 7; } .span-8 { grid-column: span 8; } .span-12 { grid-column: span 12; }
+@media (max-width: 900px) { .span-4, .span-5, .span-6, .span-7, .span-8 { grid-column: span 12; } }
+.big { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; }
+.muted { color: var(--muted); font-size: 13px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.between { justify-content: space-between; }
+.bar { height: 8px; background: var(--panel-2); border-radius: 99px; overflow: hidden; margin: 8px 0 4px; }
+.bar > div { height: 100%; background: var(--accent); }
+input[type="number"], input[type="text"], textarea { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; font: inherit; width: 100%; }
+textarea { resize: vertical; min-height: 70px; }
+label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); flex: 1; min-width: 120px; }
+button { background: var(--accent); color: white; border: 0; border-radius: 8px; padding: 9px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+button.green { background: var(--green); color: #052e12; }
+button.red { background: var(--red); }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+.pill.Paid, .pill.Approved, .pill.sent { background: #22c55e22; color: var(--green); }
+.pill.Held, .pill.held_for_approval { background: #f59e0b22; color: var(--amber); }
+.pill.Blocked, .pill.Rejected, .pill.blocked, .pill.error { background: #ef444422; color: var(--red); }
+.pill.Policy, .pill.Allowlist, .pill.Tx { background: #8b5cf622; color: #c4b5fd; }
+.list { display: flex; flex-direction: column; gap: 10px; }
+.item { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.pending { border-color: var(--amber); box-shadow: 0 0 0 1px #f59e0b44; }
+.merchant { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.merchant:last-child { border-bottom: 0; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; word-break: break-all; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+td, th { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; }
+.chat-reply { white-space: pre-wrap; background: var(--panel-2); border-radius: 10px; padding: 12px; margin-top: 10px; }
+.error { color: var(--red); font-size: 13px; margin-top: 8px; }
+.hero { text-align: center; padding: 60px 16px; }
+.hero h2 { font-size: 28px; margin: 0 0 10px; text-transform: none; letter-spacing: -0.02em; color: var(--text); }
+.table-scroll { overflow-x: auto; }

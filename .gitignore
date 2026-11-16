@@ -1,0 +1,21 @@
+# Rust / Anchor
+target/
+.anchor/
+test-ledger/
+**/*.rs.bk
+
+# Node
+node_modules/
+app/.next/
+app/out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Secrets: never commit these
+.env
+.env.local
+app/.env.local
+keys/
+*.keypair.json
+
+.DS_Store
