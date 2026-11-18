@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "name": "API Credits Co",
+    "description": "Pay-as-you-go LLM and API credits",
+    "address": "8zEDREKYDWiPXseM54uvWpfBFFUPRYHkaf4NLa4dpSpZ"
+  },
+  {
+    "name": "DataMart",
+    "description": "Marketplace for licensed training datasets",
+    "address": "7HrYog8hiVrU1UjFBoi3f4t4Lzi3zJnS6TeNiZgxHgjN"
+  },
+  {
+    "name": "ShadyGPU Rentals",
+    "description": "Unverified GPU reseller (left OFF the allowlist for the demo)",
+    "address": "BVptLfKxKry82CEkzDPyZNShDhHboweEyLYj3dnybui1"
+  }
+]

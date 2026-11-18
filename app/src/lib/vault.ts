@@ -56,7 +56,8 @@ export function toBaseUnits(usdc: number): BN {
   return new BN(Math.round(usdc * 10 ** USDC_DECIMALS));
 }
 
-export function fromBaseUnits(amount: BN | number | bigint): number {
+export function fromBaseUnits(amount: BN | number | bigint | null | undefined): number {
+  if (amount === null || amount === undefined) return 0;
   return Number(amount.toString()) / 10 ** USDC_DECIMALS;
 }
 
@@ -108,12 +109,19 @@ export async function fetchPendingPayments(
   program: Program,
   vault: PublicKey,
 ): Promise<{ publicKey: PublicKey; account: PendingAccount }[]> {
-  const all = await (program.account as AnyAccounts).pendingPayment.all([
-    { memcmp: { offset: 8, bytes: vault.toBase58() } },
-  ]);
-  return (all as { publicKey: PublicKey; account: PendingAccount }[]).sort((a, b) =>
-    b.account.id.cmp(a.account.id),
-  );
+  // Held payments live at PDAs ["pending", vault, id] for id = 0..nextPaymentId-1,
+  // so we can compute their addresses and fetch them directly. This avoids
+  // getProgramAccounts, which free RPC plans (e.g. Alchemy) don't allow.
+  const v = await fetchVault(program, vault);
+  if (!v) return [];
+  const count = v.nextPaymentId.toNumber();
+  const ids = Array.from({ length: Math.min(count, 50) }, (_, i) => count - 1 - i); // newest 50
+  if (ids.length === 0) return [];
+  const keys = ids.map((id) => pendingPda(vault, id));
+  const accounts = (await (program.account as AnyAccounts).pendingPayment.fetchMultiple(keys)) as (PendingAccount | null)[];
+  return keys
+    .map((publicKey, i) => ({ publicKey, account: accounts[i] }))
+    .filter((x): x is { publicKey: PublicKey; account: PendingAccount } => x.account !== null);
 }
 
 /** Today's spend, taking the on-chain daily rollover into account. */
@@ -154,7 +162,7 @@ export function extractError(logs: string[] | null | undefined): string {
 
 function describeEvent(name: string, data: Record<string, unknown>): { kind: string; detail: string } {
   const amt = (k = "amount") => fmtUsd(fromBaseUnits(data[k] as BN));
-  const merchant = () => merchantName((data.merchant as PublicKey).toBase58());
+  const merchant = () => (data.merchant ? merchantName((data.merchant as PublicKey).toBase58()) : "unknown merchant");
   switch (name) {
     case "paymentSent":
     case "PaymentSent":
@@ -185,25 +193,62 @@ function describeEvent(name: string, data: Record<string, unknown>): { kind: str
   }
 }
 
+const txCache = new Map<string, Awaited<ReturnType<Connection["getTransaction"]>>>();
+
 export async function fetchAuditLog(connection: Connection, vault: PublicKey, limit = 25): Promise<AuditEntry[]> {
-  const sigs = await connection.getSignaturesForAddress(vault, { limit }, "confirmed");
+  const sigs = await connection.getSignaturesForAddress(vault, { limit: Math.min(limit, 10) }, "confirmed");
   if (sigs.length === 0) return [];
-  const txs = await connection.getTransactions(
-    sigs.map((s) => s.signature),
-    { maxSupportedTransactionVersion: 0, commitment: "confirmed" },
-  );
+  // Fetch one by one (public RPCs often reject or rate-limit batch requests).
+  // Sequential, cached: transactions never change once confirmed.
+  const txs: (Awaited<ReturnType<Connection["getTransaction"]>> | null)[] = [];
+  for (const s of sigs) {
+    if (!txCache.has(s.signature)) {
+      const tx = await connection
+        .getTransaction(s.signature, { maxSupportedTransactionVersion: 0, commitment: "confirmed" })
+        .catch(() => null);
+      if (tx) txCache.set(s.signature, tx);
+    }
+    txs.push(txCache.get(s.signature) ?? null);
+  }
   const parser = eventParser();
   return sigs.map((s, i) => {
-    const tx = txs[i];
-    const logs = tx?.meta?.logMessages ?? [];
-    if (s.err) {
-      return { signature: s.signature, time: s.blockTime ?? null, ok: false, kind: "Blocked", detail: extractError(logs) };
+    const base = { signature: s.signature, time: s.blockTime ?? null };
+    const logs = txs[i]?.meta?.logMessages ?? [];
+    if (s.err) return { ...base, ok: false, kind: "Blocked", detail: extractError(logs) };
+    try {
+      const events = Array.from(parser.parseLogs(logs));
+      if (events.length === 0) return { ...base, ok: true, kind: "Tx", detail: "Vault transaction" };
+      // Event field names may arrive as snake_case or camelCase; normalise to camelCase.
+      const raw = events[0].data as Record<string, unknown>;
+      const data = Object.fromEntries(
+        Object.entries(raw).map(([k, v]) => [k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase()), v]),
+      );
+      return { ...base, ok: true, ...describeEvent(events[0].name, data) };
+    } catch (e) {
+      console.warn("could not decode event", s.signature, e);
+      return { ...base, ok: true, kind: "Tx", detail: "Vault transaction" };
     }
-    const events = Array.from(parser.parseLogs(logs));
-    if (events.length === 0) {
-      return { signature: s.signature, time: s.blockTime ?? null, ok: true, kind: "Tx", detail: "Vault transaction" };
-    }
-    const d = describeEvent(events[0].name, events[0].data as Record<string, unknown>);
-    return { signature: s.signature, time: s.blockTime ?? null, ok: true, ...d };
   });
+}
+
+/**
+ * Waits for a transaction by polling over HTTP. Public devnet websockets often
+ * drop confirmation messages, so we don't rely on `confirmTransaction`.
+ * Returns the transaction error (null on success).
+ */
+export async function waitForSignature(
+  connection: Connection,
+  signature: string,
+  timeoutMs = 60_000,
+): Promise<{ err: unknown }> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const { value } = await connection.getSignatureStatuses([signature], { searchTransactionHistory: true });
+    const s = value[0];
+    if (s && (s.confirmationStatus === "confirmed" || s.confirmationStatus === "finalized")) {
+      return { err: s.err };
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  throw new Error(`Timed out waiting for transaction ${signature}. It may still land; refresh in a moment.`);
 }

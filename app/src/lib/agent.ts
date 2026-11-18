@@ -24,6 +24,7 @@ import {
   toBaseUnits,
   tokenBalance,
   vaultPda,
+  waitForSignature,
 } from "./vault";
 
 // --- Agent wallet ------------------------------------------------------------
@@ -179,12 +180,12 @@ async function payMerchant(owner: PublicKey, merchantQuery: string, amountUsdc: 
   // skipPreflight so that a payment the firewall rejects still lands on-chain
   // as a failed transaction. That gives the owner a tamper-proof audit trail
   // of everything the agent attempted, including blocked attempts.
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
   tx.feePayer = agent.publicKey;
   tx.recentBlockhash = blockhash;
   tx.sign(agent);
   const signature = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: true });
-  const conf = await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+  const conf = { value: await waitForSignature(connection, signature) };
 
   const base = { merchant: m.name, amount_usdc: amountUsdc, memo: trimmedMemo, signature, explorer: explorerTx(signature) };
   if (conf.value.err) {

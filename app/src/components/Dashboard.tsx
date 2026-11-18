@@ -27,6 +27,7 @@ import {
   toBaseUnits,
   tokenBalance,
   vaultPda,
+  waitForSignature,
   type AuditEntry,
   type PendingAccount,
   type VaultAccount,
@@ -57,6 +58,7 @@ export function Dashboard() {
   const [walletUsdc, setWalletUsdc] = useState(0);
   const [pending, setPending] = useState<Pending[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [auditError, setAuditError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -66,16 +68,18 @@ export function Dashboard() {
       setVault(v);
       setWalletUsdc(await tokenBalance(connection, ata(owner)));
       if (!v) return;
-      const [bal, p, log] = await Promise.all([
+      const [bal, p] = await Promise.all([
         tokenBalance(connection, ata(vaultKey)),
         fetchPendingPayments(program, vaultKey),
-        fetchAuditLog(connection, vaultKey),
       ]);
       setBalance(bal);
       setPending(p);
-      setAudit(log);
+      // The audit log is best-effort: never let it block balances or approvals.
+      fetchAuditLog(connection, vaultKey)
+        .then((log) => { setAudit(log); setAuditError(null); })
+        .catch((e) => { console.warn("audit log", e); setAuditError(e instanceof Error ? e.message : String(e)); });
     } catch (e) {
-      console.error(e);
+      console.warn("refresh failed", e);
     }
   }, [program, vaultKey, owner, connection]);
 
@@ -96,8 +100,8 @@ export function Dashboard() {
       try {
         const tx = await build();
         const sig = await sendTransaction(tx, connection);
-        const bh = await connection.getLatestBlockhash();
-        await connection.confirmTransaction({ signature: sig, ...bh }, "confirmed");
+        const { err } = await waitForSignature(connection, sig);
+        if (err) throw new Error(`Transaction failed: ${JSON.stringify(err)}`);
         await refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -254,6 +258,7 @@ export function Dashboard() {
           <div className="card span-12">
             <h2>Audit log (from on-chain history)</h2>
             <AuditLog entries={audit} />
+            {auditError && <div className="error">Audit log error: {auditError}</div>}
           </div>
         </div>
       )}

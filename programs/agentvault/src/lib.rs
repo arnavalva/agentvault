@@ -18,7 +18,7 @@ use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{self, Mint, TokenAccount, TokenInterface, TransferChecked};
 
 // Replaced with your real program id by `anchor keys sync`.
-declare_id!("63n1ep3UYAmvF5XzAd7g6fMCtdnZMQcjX2H7oovYLeK2");
+declare_id!("FxvnKivcuE4AxniNRZWeY4SQa5W3fAQGfXLtsFhwLNoS");
 
 pub const MAX_MERCHANTS: usize = 8;
 pub const MAX_MEMO_LEN: usize = 64;

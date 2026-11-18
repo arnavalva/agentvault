@@ -33,7 +33,7 @@ async function runGemini(message: string, owner: PublicKey): Promise<AgentRun> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set (or set LLM_PROVIDER=demo).");
   const ai = new GoogleGenAI({ apiKey });
-  const model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+  const model = process.env.GEMINI_MODEL ?? "gemini-3.8-flash";
   const functionDeclarations = TOOL_DEFS.map((t) => ({
     name: t.name,
     description: t.description,
