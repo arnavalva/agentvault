@@ -2,6 +2,9 @@
 
 **An on-chain spending firewall for AI agents.** Give your agent a USDC wallet, not a blank cheque.
 
+**Live demo:** https://agentvault-red-sigma.vercel.app (Solana devnet; set Phantom to Testnet Mode → Devnet)  
+**Program:** [`FxvnKivcuE4AxniNRZWeY4SQa5W3fAQGfXLtsFhwLNoS`](https://explorer.solana.com/address/FxvnKivcuE4AxniNRZWeY4SQa5W3fAQGfXLtsFhwLNoS?cluster=devnet)
+
 AI agents are starting to pay for things on their own: API credits, datasets, compute. Today that usually means handing an agent a private key or a card and hoping the prompt holds. One prompt injection or one hallucinated invoice, and the wallet is empty.
 
 AgentVault puts a Solana program between the agent and the money. The agent can *ask* to pay. The program decides, using rules only the human owner can change:
@@ -64,9 +67,11 @@ Because the checks run on-chain, they hold even if the agent's model is jailbrok
 
 | Network | Program ID |
 |---|---|
-| Devnet | `TODO: paste after deploy` |
+| Devnet | [`FxvnKivcuE4AxniNRZWeY4SQa5W3fAQGfXLtsFhwLNoS`](https://explorer.solana.com/address/FxvnKivcuE4AxniNRZWeY4SQa5W3fAQGfXLtsFhwLNoS?cluster=devnet) |
 
 ## Run it yourself
+
+> **Tip:** the public devnet RPC (`api.devnet.solana.com`) rate-limits heavily. Use a free dedicated devnet RPC (for example Alchemy's free tier) and set it as `NEXT_PUBLIC_RPC_URL` in `app/.env.local`. The dashboard avoids `getProgramAccounts`, so free-tier RPCs work.
 
 Prereqs: Rust, Solana CLI, Anchor 1.2+, and Node 20+. One command installs them all:
 `curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash`

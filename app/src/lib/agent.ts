@@ -185,9 +185,20 @@ async function payMerchant(owner: PublicKey, merchantQuery: string, amountUsdc: 
   tx.recentBlockhash = blockhash;
   tx.sign(agent);
   const signature = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: true });
-  const conf = { value: await waitForSignature(connection, signature) };
-
   const base = { merchant: m.name, amount_usdc: amountUsdc, memo: trimmedMemo, signature, explorer: explorerTx(signature) };
+  // Wait at most 20s: Vercel stops the whole request at 60s, and a crash there
+  // shows up in the browser as "An error occurred..." with no explanation.
+  let conf: { value: { err: unknown } };
+  try {
+    conf = { value: await waitForSignature(connection, signature, 20_000) };
+  } catch {
+    return {
+      ...base,
+      status: "error",
+      reason: "Sent, but not confirmed within 20 seconds. Check the audit log in a moment. If this keeps happening, the agent wallet may be out of devnet SOL for fees.",
+    };
+  }
+
   if (conf.value.err) {
     const failed = await connection.getTransaction(signature, { maxSupportedTransactionVersion: 0, commitment: "confirmed" });
     return { ...base, status: "blocked", reason: `Blocked by vault policy: ${extractError(failed?.meta?.logMessages)}` };

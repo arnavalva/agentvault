@@ -23,7 +23,7 @@ const MAX_TURNS = 8;
 export async function runAgent(message: string, owner: PublicKey): Promise<AgentRun> {
   const provider = (process.env.LLM_PROVIDER ?? "gemini").toLowerCase();
   if (provider === "anthropic") return runClaude(message, owner);
-  if (provider === "demo") return runDemo(owner);
+  if (provider === "demo") return runDemo(message, owner);
   return runGemini(message, owner);
 }
 
@@ -122,12 +122,32 @@ async function runClaude(message: string, owner: PublicKey): Promise<AgentRun> {
 
 // --- Scripted demo (no LLM) ---------------------------------------------------------
 
-async function runDemo(owner: PublicKey): Promise<AgentRun> {
-  const plan: Record<string, unknown>[] = [
-    { merchant: "API Credits Co", amount_usdc: 3, memo: "API credits top-up" },
-    { merchant: "DataMart", amount_usdc: 8, memo: "Customer reviews dataset" },
-    { merchant: "ShadyGPU Rentals", amount_usdc: 4, memo: "Cheap GPU hours" },
-  ];
+// Picks payments from the message by keyword, so a live demo can show each case on its own:
+//   "...API credits... DataMart dataset..."  -> $3 paid + $8 held
+//   "...ShadyGPU..." / "GPU"                 -> $4 blocked (not allowlisted)
+// An amount like "$3" or "3 dollars" next to a merchant overrides its default.
+const DEMO_MERCHANTS = [
+  { merchant: "API Credits Co", keys: ["api credit", "api credits co", "credits"], amount: 3, memo: "API credits top-up" },
+  { merchant: "DataMart", keys: ["datamart", "dataset"], amount: 8, memo: "Customer reviews dataset" },
+  { merchant: "ShadyGPU Rentals", keys: ["shady", "gpu"], amount: 4, memo: "Cheap GPU hours" },
+];
+
+function demoPlan(message: string): Record<string, unknown>[] {
+  const parts = message.toLowerCase().split(/\band\b|[.;,\n]/);
+  const plan: Record<string, unknown>[] = [];
+  for (const m of DEMO_MERCHANTS) {
+    const part = parts.find((p) => m.keys.some((k) => p.includes(k)));
+    if (!part) continue;
+    const num = part.match(/\$\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:dollars?|usdc|usd)/);
+    const amount = num ? Number(num[1] ?? num[2]) : m.amount;
+    plan.push({ merchant: m.merchant, amount_usdc: amount, memo: m.memo });
+  }
+  if (plan.length > 0) return plan;
+  return DEMO_MERCHANTS.slice(0, 2).map((m) => ({ merchant: m.merchant, amount_usdc: m.amount, memo: m.memo }));
+}
+
+async function runDemo(message: string, owner: PublicKey): Promise<AgentRun> {
+  const plan = demoPlan(message);
   const steps: AgentStep[] = [];
   for (const args of plan) {
     steps.push({ tool: "pay_merchant", args, result: await executeTool("pay_merchant", args, owner) });
